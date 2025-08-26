@@ -1,0 +1,431 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "cr650_sharedcommondataserviceforapps_6085d"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "metadata": {
+            "operationMetadataId": "56fc9411-bd5d-4276-a232-30fcfc972d24"
+          },
+          "type": "Request",
+          "kind": "PowerAppV2",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "title": "leadId",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                }
+              },
+              "required": [
+                "text"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "leadGuid": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "174bc3d0-b246-43e1-be9e-5aa5e414958e"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "leadGuid",
+                "type": "string",
+                "value": "@triggerBody()['text']"
+              }
+            ]
+          }
+        },
+        "Try": {
+          "actions": {
+            "List_rows_accounts_table": {
+              "runAfter": {
+                "Get_a_row_by_ID_Leads_Table": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c5fad277-27c0-4a1e-a253-555f51602a76"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "entityName": "accounts",
+                  "$filter": "name eq ''",
+                  "$top": 1
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "connectionName": "shared_commondataserviceforapps"
+                }
+              }
+            },
+            "List_rows_contacts_table": {
+              "runAfter": {
+                "Compose_2": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "3294a771-47cd-4cd9-9432-246849047743"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "entityName": "contacts",
+                  "$filter": "emailaddress1 eq '@{outputs('Get_a_row_by_ID_Leads_Table')?['body/emailaddress1']}'",
+                  "$top": 5
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "connectionName": "shared_commondataserviceforapps"
+                }
+              }
+            },
+            "Condition": {
+              "actions": {
+                "HTTP": {
+                  "metadata": {
+                    "operationMetadataId": "c3b6e006-af55-4d1c-bc48-ff104a5fb9e7"
+                  },
+                  "type": "Http",
+                  "inputs": {
+                    "uri": "https://orgd20f47ae.crm4.dynamics.com//api/data/v9.0/leads(@{variables('leadGuid')})/Microsoft.Dynamics.CRM.QualifyLead",
+                    "method": "POST",
+                    "headers": {
+                      "Authorization": "Bearer @{variables('access_token')}",
+                      "Accept": "application/json",
+                      "Content-Type": "application/json; charset=utf-8",
+                      "OData-MaxVersion": "4.0",
+                      "OData-Version": "4.0"
+                    },
+                    "body": {
+                      "CreateAccount": false,
+                      "CreateContact": false,
+                      "CreateOpportunity": true,
+                      "Status": 3
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Compose_3": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Perform_a_bound_action": {
+                    "metadata": {
+                      "operationMetadataId": "c5ef31e5-a568-4e15-a8e2-d1e24590cc60"
+                    },
+                    "type": "OpenApiConnection",
+                    "inputs": {
+                      "parameters": {
+                        "entityName": "leads",
+                        "actionName": "Microsoft.Dynamics.CRM.QualifyLead",
+                        "recordId": "@variables('leadGuid')",
+                        "item/CreateAccount": true,
+                        "item/CreateContact": true,
+                        "item/CreateOpportunity": true,
+                        "item/Status": 3
+                      },
+                      "host": {
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                        "operationId": "PerformBoundAction",
+                        "connectionName": "shared_commondataserviceforapps"
+                      }
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "or": [
+                  {
+                    "greater": [
+                      "@length(outputs('Compose_3'))",
+                      0
+                    ]
+                  },
+                  {
+                    "greater": [
+                      "@length(outputs('Compose_2'))",
+                      0
+                    ]
+                  }
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "53b61f3c-c668-45e0-9fe4-862c8f3d294c"
+              },
+              "type": "If"
+            },
+            "Compose_2": {
+              "runAfter": {
+                "List_rows_accounts_table": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "264d7e1c-0469-4bb6-9c78-be60ce8315ab"
+              },
+              "type": "Compose",
+              "inputs": "@concat('name eq ''', replace(variables('companyName'),'''',''''''), '''')"
+            },
+            "Compose_3": {
+              "runAfter": {
+                "List_rows_contacts_table": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "4b3da643-e8e9-4a8d-8fc8-4e227d5948e9"
+              },
+              "type": "Compose",
+              "inputs": "@concat('emailaddress1 eq ''', replace(variables('email'),'''',''''''), '''')"
+            },
+            "HTTP_GetToken": {
+              "metadata": {
+                "operationMetadataId": "222bf126-9dc8-47f7-b509-c55b6f7b4a14"
+              },
+              "type": "Http",
+              "inputs": {
+                "uri": "https://login.microsoftonline.com/14feaaa2-815e-4739-aef6-12bba90c8985/oauth2/token",
+                "method": "POST",
+                "headers": {
+                  "Accept": "application/json",
+                  "Content-Type": "application/x-www-form-urlencoded",
+                  "OData-MaxVersion": "4.0",
+                  "OData-Version": "4.0"
+                },
+                "body": "grant_type=client_credentials&client_id=b3abf193-bc04-4823-833e-049e097435f8&client_secret=IrT8Q~iZmcE6bRm.WmgesZwl1Fkgiw1rODp6QbB0&resource=https://orgd20f47ae.crm4.dynamics.com"
+              }
+            },
+            "Get_a_row_by_ID_Leads_Table": {
+              "runAfter": {
+                "Set_variable": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "1325badf-df8c-4070-9e00-9a54c8debf40"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "entityName": "leads",
+                  "recordId": "@variables('leadGuid')",
+                  "$select": "companyname,emailaddress1,firstname,lastname,parentaccountid,parentcontactid"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "operationId": "GetItem",
+                  "connectionName": "shared_commondataserviceforapps"
+                }
+              }
+            },
+            "Set_variable": {
+              "runAfter": {
+                "HTTP_GetToken": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f95de244-bc6b-4d9a-9dac-c47f30ca895d"
+              },
+              "type": "SetVariable",
+              "inputs": {
+                "name": "access_token",
+                "value": "@{body('HTTP_GetToken')?['access_token']}"
+              }
+            }
+          },
+          "runAfter": {
+            "access_token": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "62a275cd-d9a5-4707-a447-d6b88d71c751"
+          },
+          "type": "Scope"
+        },
+        "email": {
+          "runAfter": {
+            "companyName": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "29fee5b3-f445-47e7-88e3-7931d109f081"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "email",
+                "type": "string",
+                "value": "' '"
+              }
+            ]
+          }
+        },
+        "existingAccountId": {
+          "runAfter": {
+            "email": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "83fb46c4-85b1-447a-8dca-c27f18b62a86"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "existingAccountId",
+                "type": "string",
+                "value": "' '"
+              }
+            ]
+          }
+        },
+        "companyName": {
+          "runAfter": {
+            "leadGuid": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "ad3f587b-a527-4cb1-a0f9-b66bb8fad7ee"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "companyName",
+                "type": "string",
+                "value": "' '"
+              }
+            ]
+          }
+        },
+        "existingContactId": {
+          "runAfter": {
+            "existingAccountId": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "1a700a69-c996-49b5-8578-0999ebff494d"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "existingContactId",
+                "type": "string",
+                "value": "' '"
+              }
+            ]
+          }
+        },
+        "accountFound": {
+          "runAfter": {
+            "existingContactId": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "4dbaff06-7bcd-4f16-887f-c07dbbf86a68"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "accountFound",
+                "type": "boolean",
+                "value": false
+              }
+            ]
+          }
+        },
+        "contactFound": {
+          "runAfter": {
+            "accountFound": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "63cd5623-a3ce-4c52-9f83-b8947fabaea0"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "contactFound",
+                "type": "boolean",
+                "value": false
+              }
+            ]
+          }
+        },
+        "access_token": {
+          "runAfter": {
+            "contactFound": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "91c4c4b2-05f5-4040-a115-d0adb8e78b8f"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "access_token",
+                "type": "string",
+                "value": "' '"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}
