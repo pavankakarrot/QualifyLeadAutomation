@@ -1,4 +1,4 @@
-# Lead Qualification Canvas App + Power Automate Flow
+# Lead Qualification Canvas App + Power Automate Flow (In-Progress)
 
 ## 📖 Overview
 This project is a **Canvas Power App integrated with Power Automate** to demonstrate a lead qualification process in Microsoft Dataverse.  
@@ -72,3 +72,4 @@ This app replicates a **real-world lead management solution** while highlighting
 
 ## 👨‍💻 Author
 Built by *Pavan Kakarrot* as a demonstration of Power Platform expertise.
+
